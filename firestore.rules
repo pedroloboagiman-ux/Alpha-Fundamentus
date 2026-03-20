@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.authorId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        (request.auth.token.email == "pedroloboagiman@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is string &&
+         request.resource.data[field].size() >= minLen &&
+         request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser() {
+      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'photoURL', 'lastPostDate', 'isPremium', 'role', 'createdAt']) &&
+             isValidString('uid', 1, 100) &&
+             isValidString('displayName', 1, 100) &&
+             isValidEmail(request.resource.data.email) &&
+             isValidOptionalString('photoURL', 0, 1000) &&
+             request.resource.data.isPremium is bool &&
+             (request.resource.data.role in ['user', 'admin']) &&
+             request.resource.data.createdAt is timestamp &&
+             (!( 'lastPostDate' in request.resource.data ) || request.resource.data.lastPostDate is timestamp);
+    }
+
+    function isValidIdea() {
+      return hasOnlyAllowedFields(['id', 'authorId', 'authorName', 'authorPhoto', 'title', 'ticker', 'content', 'coverImage', 'votesCount', 'createdAt', 'updatedAt']) &&
+             isValidString('id', 1, 100) &&
+             isValidString('authorId', 1, 100) &&
+             isValidString('authorName', 1, 100) &&
+             isValidOptionalString('authorPhoto', 0, 1000) &&
+             isValidString('title', 1, 200) &&
+             isValidString('ticker', 1, 20) &&
+             isValidString('content', 1, 50000) &&
+             isValidOptionalString('coverImage', 0, 1000) &&
+             request.resource.data.votesCount is number &&
+             request.resource.data.createdAt is timestamp &&
+             request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidVote() {
+      return hasOnlyAllowedFields(['id', 'userId', 'ideaId', 'createdAt']) &&
+             isValidString('id', 1, 100) &&
+             isValidString('userId', 1, 100) &&
+             isValidString('ideaId', 1, 100) &&
+             request.resource.data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated(); // Public profiles needed for ideas
+      allow create: if isOwner(userId) && isValidUser() && uidUnchanged() && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser() && uidNotModified() && (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /ideas/{ideaId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidIdea() && request.resource.data.authorId == request.auth.uid && request.resource.data.votesCount == 0;
+      allow update: if isAuthenticated() && (
+        (isDocOwner() && isValidIdea() && request.resource.data.authorId == resource.data.authorId && request.resource.data.votesCount == resource.data.votesCount && request.resource.data.createdAt == resource.data.createdAt) ||
+        (
+          // Allow voting updates
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votesCount']) &&
+          math.abs(request.resource.data.votesCount - resource.data.votesCount) == 1 &&
+          (
+            (request.resource.data.votesCount > resource.data.votesCount &&
+             !exists(/databases/$(database)/documents/votes/$(request.auth.uid + '_' + ideaId)) &&
+             getAfter(/databases/$(database)/documents/votes/$(request.auth.uid + '_' + ideaId)) != null) ||
+            (request.resource.data.votesCount < resource.data.votesCount &&
+             exists(/databases/$(database)/documents/votes/$(request.auth.uid + '_' + ideaId)) &&
+             getAfter(/databases/$(database)/documents/votes/$(request.auth.uid + '_' + ideaId)) == null)
+          )
+        ) || isAdmin()
+      );
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /votes/{voteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidVote() && request.resource.data.userId == request.auth.uid && voteId == (request.auth.uid + '_' + request.resource.data.ideaId);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
