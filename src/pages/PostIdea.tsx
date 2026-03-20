@@ -53,12 +53,45 @@ export function PostIdea() {
   }, [id, isEditing, user, navigate]);
 
   const handleImageUpload = async (file: File): Promise<string> => {
-    if (!user) throw new Error('Not authenticated');
-    const fileExt = file.name ? file.name.split('.').pop() : 'png';
-    const fileName = `ideas/${user.uid}/${Date.now()}.${fileExt}`;
-    const storageRef = ref(storage, fileName);
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const handlePaste = useCallback(async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -71,23 +104,20 @@ export function PostIdea() {
         const file = items[i].getAsFile();
         if (!file) continue;
 
+        const loadingText = `\n![Uploading image...]()\n`;
+        setContent(prev => prev + loadingText);
+
         try {
-          // Show a temporary loading text
-          const loadingText = `\n![Uploading image...]()\n`;
-          setContent(prev => prev + loadingText);
-          
-          const url = await handleImageUpload(file);
-          
-          // Replace loading text with actual image markdown
-          setContent(prev => prev.replace(loadingText, `\n![Image](${url})\n`));
+          const base64Url = await handleImageUpload(file);
+          setContent(prev => prev.replace(loadingText, `\n![Image](${base64Url})\n`));
         } catch (error) {
           console.error('Error uploading pasted image:', error);
-          alert('Failed to upload image. Please try again.');
-          setContent(prev => prev.replace(`\n![Uploading image...]()\n`, ''));
+          alert('Failed to process image. Please try again.');
+          setContent(prev => prev.replace(loadingText, ''));
         }
       }
     }
-  }, [user]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
