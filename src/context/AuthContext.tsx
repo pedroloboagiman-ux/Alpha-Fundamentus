@@ -63,8 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error signing in:', error);
+      if (error.code === 'auth/unauthorized-domain') {
+        alert('Erro de domínio não autorizado. Por favor, adicione o domínio deste aplicativo (a URL que aparece na barra de endereços ou a URL do App) na lista de domínios autorizados no Firebase Console (Authentication -> Settings -> Authorized domains).');
+      } else {
+        alert(`Erro ao fazer login: ${error.message || 'Erro desconhecido'}`);
+      }
     }
   };
 
