@@ -4,8 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Idea } from '../types';
-import { GoogleGenAI, ThinkingLevel } from '@google/genai';
-import { ArrowUpRight, Loader2, BrainCircuit, Calendar, User as UserIcon } from 'lucide-react';
+import { ArrowUpRight, Loader2, Calendar, User as UserIcon } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function IdeaDetail() {
@@ -16,8 +15,6 @@ export function IdeaDetail() {
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -78,35 +75,6 @@ export function IdeaDetail() {
     }
   };
 
-  const runAIAnalysis = async () => {
-    if (!idea || analyzing) return;
-    setAnalyzing(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const prompt = `You are a senior fundamental analyst. Review the following investment thesis for ${idea.ticker} titled "${idea.title}". 
-      
-      Thesis:
-      ${idea.content}
-      
-      Provide a concise, highly analytical critique of this thesis. Highlight the strongest points, potential blind spots, and key metrics to monitor. Use markdown formatting.`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
-        contents: prompt,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
-        }
-      });
-
-      setAiAnalysis(response.text || 'Analysis failed to generate.');
-    } catch (error) {
-      console.error('AI Analysis failed:', error);
-      setAiAnalysis('Failed to generate AI analysis. Please try again later.');
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -164,51 +132,6 @@ export function IdeaDetail() {
             {idea.content.split('\n').map((paragraph, idx) => (
               <p key={idx}>{paragraph}</p>
             ))}
-          </div>
-
-          <div className="pt-12 border-t border-stone-200">
-            <div className="bg-stone-900 rounded-3xl p-8 text-white">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-stone-800 rounded-xl">
-                    <BrainCircuit className="w-6 h-6 text-emerald-400" />
-                  </div>
-                  <h3 className="text-2xl font-semibold">AI Fundamental Critique</h3>
-                </div>
-                {!aiAnalysis && !analyzing && (
-                  <button
-                    onClick={runAIAnalysis}
-                    className="px-4 py-2 bg-white text-stone-900 text-sm font-medium rounded-xl hover:bg-stone-100 transition-colors"
-                  >
-                    Analyze Thesis
-                  </button>
-                )}
-              </div>
-
-              {analyzing ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
-                  <p className="text-stone-400">Gemini is thinking deeply about this thesis...</p>
-                </div>
-              ) : aiAnalysis ? (
-                <div className="prose prose-invert max-w-none">
-                  {/* Simple markdown rendering for the AI response */}
-                  {aiAnalysis.split('\n').map((line, i) => {
-                    if (line.startsWith('**') && line.endsWith('**')) {
-                      return <h4 key={i} className="text-emerald-400 mt-4 mb-2">{line.replace(/\*\*/g, '')}</h4>;
-                    }
-                    if (line.startsWith('* ')) {
-                      return <li key={i} className="ml-4 text-stone-300">{line.replace('* ', '')}</li>;
-                    }
-                    return <p key={i} className="text-stone-300">{line}</p>;
-                  })}
-                </div>
-              ) : (
-                <p className="text-stone-400">
-                  Use our advanced AI to critique this thesis, identify blind spots, and validate the fundamental assumptions.
-                </p>
-              )}
-            </div>
           </div>
         </div>
 

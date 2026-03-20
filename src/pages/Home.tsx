@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Idea } from '../types';
 import { Link } from 'react-router-dom';
-import { TrendingUp, Clock, Flame, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, Clock, Flame, ArrowUpRight, Shield, PenTool, CreditCard } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 
 export function Home() {
+  const { user, loading: authLoading, signIn } = useAuth();
   const [topIdeas, setTopIdeas] = useState<Idea[]>([]);
   const [recentIdeas, setRecentIdeas] = useState<Idea[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [filter, setFilter] = useState<'recent' | 'popular'>('recent');
 
   useEffect(() => {
+    if (!user) return;
+
+    setDataLoading(true);
     // Top 10 hottest ideas
     const qTop = query(collection(db, 'ideas'), orderBy('votesCount', 'desc'), limit(10));
     const unsubTop = onSnapshot(qTop, (snapshot) => {
@@ -27,19 +33,80 @@ export function Home() {
     );
     const unsubRecent = onSnapshot(qRecent, (snapshot) => {
       setRecentIdeas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Idea)));
-      setLoading(false);
+      setDataLoading(false);
     }, (error) => console.error(error));
 
     return () => {
       unsubTop();
       unsubRecent();
     };
-  }, [filter]);
+  }, [user, filter]);
 
-  if (loading) {
+  if (authLoading || !user) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-stone-200 border-t-stone-900 rounded-full animate-spin"></div>
+      <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-stone-900 text-white rounded-3xl mb-8 shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-300">
+            <span className="text-4xl font-bold font-serif">&alpha;</span>
+          </div>
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-stone-900 mb-6 leading-tight">
+            Exclusive Fundamental Analysis.
+          </h1>
+          <p className="text-xl text-stone-600 mb-12 max-w-2xl mx-auto leading-relaxed">
+            Join an elite community of investors. Access is strictly gated: contribute one high-quality thesis every 3 months, or subscribe for $100/month.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
+            <button
+              onClick={signIn}
+              className="w-full sm:w-auto px-8 py-4 bg-stone-900 text-white text-lg font-medium rounded-full hover:bg-stone-800 transition-all hover:scale-105 shadow-xl flex items-center justify-center gap-2"
+            >
+              <Shield className="w-5 h-5" />
+              Sign In to Access
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 text-left max-w-4xl mx-auto">
+            <div className="p-8 rounded-3xl bg-white border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-stone-100 rounded-xl flex items-center justify-center mb-6">
+                <PenTool className="w-6 h-6 text-stone-900" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Contribute to Access</h3>
+              <p className="text-stone-600 leading-relaxed">
+                Share your best investment ideas. A single high-quality fundamental analysis grants you 3 months of full platform access.
+              </p>
+            </div>
+            <div className="p-8 rounded-3xl bg-white border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-6">
+                <CreditCard className="w-6 h-6 text-emerald-700" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Passive Subscription</h3>
+              <p className="text-stone-600 leading-relaxed">
+                Prefer to just read? Pay $100/month to access all theses and community votes without posting.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (dataLoading) {
+    return (
+      <div className="space-y-16 animate-pulse">
+        <section>
+          <div className="h-10 bg-stone-200 rounded-lg w-64 mb-8"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-96 bg-stone-200 rounded-2xl"></div>
+            ))}
+          </div>
+        </section>
       </div>
     );
   }

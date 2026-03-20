@@ -5,7 +5,7 @@ import { LogOut, PlusCircle, TrendingUp, User as UserIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function Layout() {
-  const { user, signOut } = useAuth();
+  const { user, loading, signIn, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -26,7 +26,7 @@ export function Layout() {
             </Link>
 
             <div className="flex items-center gap-6">
-              {user ? (
+              {loading ? null : user ? (
                 <>
                   <Link
                     to="/post"
@@ -61,7 +61,7 @@ export function Layout() {
                 </>
               ) : (
                 <button
-                  onClick={() => navigate('/')}
+                  onClick={signIn}
                   className="text-sm font-medium bg-stone-900 text-white px-4 py-2 rounded-full hover:bg-stone-800 transition-colors"
                 >
                   Sign In

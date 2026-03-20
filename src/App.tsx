@@ -12,11 +12,7 @@ function ProtectedRoute({ children, requireAccess = true }: { children: React.Re
   const { user, loading, hasAccess } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
-        <div className="w-8 h-8 border-4 border-stone-200 border-t-stone-900 rounded-full animate-spin"></div>
-      </div>
-    );
+    return null;
   }
 
   if (!user) {

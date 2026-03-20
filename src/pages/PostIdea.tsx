@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { GoogleGenAI } from '@google/genai';
 import { Loader2, Image as ImageIcon, CheckCircle } from 'lucide-react';
 
 export function PostIdea() {
@@ -13,46 +12,7 @@ export function PostIdea() {
   const [ticker, setTicker] = useState('');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
-  const [generatingImage, setGeneratingImage] = useState(false);
   const [coverImage, setCoverImage] = useState('');
-
-  const generateCoverImage = async () => {
-    if (!title || !ticker) {
-      alert('Please enter a title and ticker first.');
-      return;
-    }
-    setGeneratingImage(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const prompt = `A professional, minimalist, abstract financial illustration representing the stock ticker ${ticker} and the concept: "${title}". Use a clean, modern color palette suitable for a high-end financial platform. No text in the image.`;
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-image-preview',
-        contents: {
-          parts: [{ text: prompt }],
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: '16:9',
-            imageSize: '1K'
-          }
-        }
-      });
-
-      for (const part of response.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) {
-          const base64EncodeString = part.inlineData.data;
-          setCoverImage(`data:image/png;base64,${base64EncodeString}`);
-          break;
-        }
-      }
-    } catch (error) {
-      console.error('Failed to generate image:', error);
-      alert('Failed to generate cover image.');
-    } finally {
-      setGeneratingImage(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,29 +112,27 @@ export function PostIdea() {
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button
                       type="button"
-                      onClick={generateCoverImage}
-                      disabled={generatingImage}
+                      onClick={() => setCoverImage('')}
                       className="text-white text-sm font-medium hover:underline"
                     >
-                      Regenerate
+                      Remove
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="w-full aspect-video bg-stone-100 rounded-xl flex flex-col items-center justify-center mb-4 border border-dashed border-stone-300">
                   <ImageIcon className="w-8 h-8 text-stone-400 mb-2" />
-                  <span className="text-xs text-stone-500 text-center px-4">AI will generate a cover based on your title</span>
+                  <span className="text-xs text-stone-500 text-center px-4">Provide an image URL below</span>
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={generateCoverImage}
-                disabled={generatingImage || !title || !ticker}
-                className="w-full py-2.5 px-4 bg-stone-100 text-stone-900 text-sm font-medium rounded-xl hover:bg-stone-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {generatingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Generate with AI'}
-              </button>
+              <input
+                type="url"
+                value={coverImage}
+                onChange={(e) => setCoverImage(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-sm"
+              />
             </div>
 
             <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
