@@ -41,6 +41,11 @@ function AppRoutes() {
             <PostIdea />
           </ProtectedRoute>
         } />
+        <Route path="edit-idea/:id" element={
+          <ProtectedRoute requireAccess={false}>
+            <PostIdea />
+          </ProtectedRoute>
+        } />
         <Route path="idea/:id" element={
           <ProtectedRoute>
             <IdeaDetail />

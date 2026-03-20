@@ -95,6 +95,19 @@ service cloud.firestore {
              request.resource.data.createdAt is timestamp;
     }
 
+    function isValidComment() {
+      return hasOnlyAllowedFields(['id', 'ideaId', 'authorId', 'authorName', 'authorPhoto', 'content', 'parentId', 'createdAt', 'updatedAt']) &&
+             isValidString('id', 1, 100) &&
+             isValidString('ideaId', 1, 100) &&
+             isValidString('authorId', 1, 100) &&
+             isValidString('authorName', 1, 100) &&
+             isValidOptionalString('authorPhoto', 0, 1000) &&
+             isValidString('content', 1, 10000) &&
+             isValidOptionalString('parentId', 0, 100) &&
+             request.resource.data.createdAt is timestamp &&
+             request.resource.data.updatedAt is timestamp;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -132,6 +145,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidVote() && request.resource.data.userId == request.auth.uid && voteId == (request.auth.uid + '_' + request.resource.data.ideaId);
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /comments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidComment() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && isDocOwner() && isValidComment() && request.resource.data.authorId == resource.data.authorId && request.resource.data.ideaId == resource.data.ideaId && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isDocOwner() || isAdmin();
     }
   }
 }

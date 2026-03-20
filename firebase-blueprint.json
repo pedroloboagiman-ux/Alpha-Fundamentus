@@ -46,6 +46,23 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "ideaId", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment or reply on an idea.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ideaId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string", "format": "uri" },
+        "content": { "type": "string" },
+        "parentId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ideaId", "authorId", "authorName", "content", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -60,6 +77,10 @@
     "/votes/{voteId}": {
       "schema": { "$ref": "#/entities/Vote" },
       "description": "Stores individual votes to prevent double voting."
+    },
+    "/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/Comment" },
+      "description": "Stores comments and replies on ideas."
     }
   }
 }

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Idea } from '../types';
-import { ArrowUpRight, Loader2, Calendar, User as UserIcon } from 'lucide-react';
+import { ArrowUpRight, Loader2, Calendar, User as UserIcon, Edit } from 'lucide-react';
 import { format } from 'date-fns';
+import Markdown from 'react-markdown';
+import { Comments } from '../components/Comments';
 
 export function IdeaDetail() {
   const { id } = useParams<{ id: string }>();
@@ -111,28 +113,46 @@ export function IdeaDetail() {
             </div>
           )}
 
-          <div className="flex items-center gap-4 py-4 border-y border-stone-200">
-            {idea.authorPhoto ? (
-              <img src={idea.authorPhoto} alt={idea.authorName} className="w-12 h-12 rounded-full" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="w-12 h-12 bg-stone-200 rounded-full flex items-center justify-center">
-                <UserIcon className="w-6 h-6 text-stone-500" />
-              </div>
-            )}
-            <div>
-              <div className="font-semibold text-stone-900">{idea.authorName}</div>
-              <div className="flex items-center gap-2 text-sm text-stone-500">
-                <Calendar className="w-4 h-4" />
-                {idea.createdAt?.toDate ? format(idea.createdAt.toDate(), 'MMMM d, yyyy') : 'Recently'}
+          <div className="flex items-center justify-between py-4 border-y border-stone-200">
+            <div className="flex items-center gap-4">
+              {idea.authorPhoto ? (
+                <img src={idea.authorPhoto} alt={idea.authorName} className="w-12 h-12 rounded-full" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-12 h-12 bg-stone-200 rounded-full flex items-center justify-center">
+                  <UserIcon className="w-6 h-6 text-stone-500" />
+                </div>
+              )}
+              <div>
+                <div className="font-semibold text-stone-900">{idea.authorName}</div>
+                <div className="flex items-center gap-2 text-sm text-stone-500">
+                  <Calendar className="w-4 h-4" />
+                  {idea.createdAt?.toDate ? format(idea.createdAt.toDate(), 'MMMM d, yyyy') : 'Recently'}
+                </div>
               </div>
             </div>
+            
+            {user?.uid === idea.authorId && (
+              <Link
+                to={`/edit-idea/${idea.id}`}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                Edit
+              </Link>
+            )}
           </div>
 
-          <div className="prose prose-stone max-w-none prose-lg">
-            {idea.content.split('\n').map((paragraph, idx) => (
-              <p key={idx}>{paragraph}</p>
-            ))}
+          <div className="prose prose-stone max-w-none prose-lg markdown-body">
+            <Markdown
+              components={{
+                img: ({node, ...props}) => <img {...props} referrerPolicy="no-referrer" style={{maxWidth: '100%', borderRadius: '0.5rem'}} />
+              }}
+            >
+              {idea.content}
+            </Markdown>
           </div>
+
+          <Comments ideaId={idea.id} />
         </div>
 
         <div className="md:w-64 flex-shrink-0">

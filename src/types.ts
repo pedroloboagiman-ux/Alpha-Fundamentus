@@ -29,3 +29,15 @@ export interface Vote {
   ideaId: string;
   createdAt: any;
 }
+
+export interface Comment {
+  id: string;
+  ideaId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  content: string;
+  parentId?: string;
+  createdAt: any;
+  updatedAt: any;
+}
